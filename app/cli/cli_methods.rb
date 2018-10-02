@@ -94,7 +94,7 @@ require 'rest-client'
     end
 
     def discover_something
-      random_liked_artist = get_user_artist.sample
+      random_liked_artist = get_liked_user_artists.sample
       select_similar_artist(random_liked_artist)
     end
 
@@ -108,7 +108,6 @@ require 'rest-client'
       end
       @artist = artist_array.sample
       puts @artist
-      binding.pry
       ##then use API to get a top track, maybe selecting at random
     end
 
@@ -116,19 +115,31 @@ require 'rest-client'
       UserArtist.where(:user_id => @user.id).map {|ua| ua.artist.name}
     end
 
+    def get_liked_user_artists
+      UserArtist.where(:user_id => @user.id, :approval => true).map {|ua| ua.artist.name}
+    end
+
+    def get_disliked_user_artists
+      UserArtist.where(:user_id => @user.id, :approval => false).map {|ua| ua.artist.name}
+    end
+
     def get_feedback
       puts "Do you like this artist? Y/N or 'skip'"
       feedback = gets.chomp
       if feedback.downcase == "y"
+        artist = Artist.find_or_create_by(:name => @artist)
         newua = UserArtist.create
         newua.user = @user
-        newua.artist = @artist
+        newua.artist = artist
         newua.approval = true
+        newua.save
       else feedback.downcase == "n"
+        artist = Artist.find_or_create_by(:name => @artist)
         newua = UserArtist.create
         newua.user = @user
-        newua.artist = @artist
+        newua.artist = artist
         newua.approval = false
+        newua.save
       end
     end
 
