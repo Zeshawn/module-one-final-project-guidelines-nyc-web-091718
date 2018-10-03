@@ -73,19 +73,23 @@ require 'rest-client'
       puts "1. Discover something new."
       puts "2. Learn about yourself." #output user's favorite and least favorite genres
       puts "3. See what's hot now." #most liked artists
-      puts "4. Log out."
+      puts "4. Enter a new artist to track."
+      puts "5. Log out."
       choice = gets.chomp
       if choice == "1"
         discover_something
         get_feedback
         recurring_prompt
       elsif choice == "2"
-        user_genres
+        display_artists
         recurring_prompt
       elsif choice == "3"
-        most_popular_artists
+        top_tracks
         recurring_prompt
-      elsif choice == '4'
+      elsif choice == "4"
+        add_artist_to_user
+        recurring_prompt
+      elsif choice == '5'
         puts "Bye bye !"
       else
         "Please choose what you want using an integer between 1 and 3."
@@ -96,6 +100,7 @@ require 'rest-client'
     def discover_something
       random_liked_artist = get_liked_user_artists.sample
       select_similar_artist(random_liked_artist)
+
     end
 
     def select_similar_artist(artistname)
@@ -143,5 +148,47 @@ require 'rest-client'
       end
     end
 
+    def add_artist_to_user
+      puts "Enter an artist that you have heard of."
+      artist = gets.chomp
+      newartist = Artist.find_or_create_by(:name => artist)
+      newua = UserArtist.create
+      newua.user = @user
+      newua.artist = newartist
+      puts "Do you like this artist? (Yes/No)"
+      choice = gets.chomp
+      newua.approval = (choice.downcase == "yes") ? true : false
+      newua.save
+    end
 
+    def display_artists
+      puts "Artists you like!"
+        get_liked_user_artists.each do |artist| puts artist
+          sleep(0.2)
+        end
+
+      puts "Artists you don't like"
+        get_disliked_user_artists.each do |artist| puts artist
+          sleep(0.2)
+        end
+
+    end
+
+    def top_tracks
+      puts "Here are some top tracks that you've been missing out on!"
+      url =  "http://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key=b2fc3323fc5e2df08d58b06990466169&format=json"
+      response = RestClient.get(url)
+      top_track = JSON.parse(response)
+      top_track_list = top_track["tracks"]["track"].map do |track|
+        [track["name"], track["artist"]["name"]]
+      end
+      user_artists = get_user_artists
+      top_track_list.delete_if {|track_and_artist| user_artists.include?(track_and_artist[1])}
+      top_track_list.each do |track_and_artist|
+        puts "#{track_and_artist[0]} by #{track_and_artist[1]}"
+        sleep(0.2)
+      end
+      binding.pry
+
+    end
 end
