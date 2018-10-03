@@ -35,7 +35,7 @@ require 'nokogiri'
     end
 
     def get_user_top_artist(username)
-      url = "#{@root}?method=user.gettopartists&user=#{username}&api_key=b2fc3323fc5e2df08d58b06990466169&format=json"
+      url = "#{@root}?method=user.gettopartists&user=#{username}&api_key=#{ENV['API_KEY']}&format=json"
       anything = RestClient.get(url)
       result = JSON.parse(anything)
       artist_array = result['topartists']["artist"].map {|artist| artist["name"]}
@@ -106,7 +106,7 @@ require 'nokogiri'
     end
 
     def select_similar_artist(artistname)
-      url = "#{@root}?method=artist.getsimilar&artist=#{artistname}&api_key=b2fc3323fc5e2df08d58b06990466169&format=json"
+      url = "#{@root}?method=artist.getsimilar&artist=#{artistname}&api_key=#{ENV['API_KEY']}&format=json"
       response = RestClient.get(url)
       similar_to_artist = JSON.parse(response)
       artist_array = similar_to_artist["similarartists"]["artist"].map {|artist| artist["name"]}
@@ -178,7 +178,7 @@ require 'nokogiri'
 
     def top_tracks
       puts "Here are some top tracks that you've been missing out on!"
-      url =  "http://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key=b2fc3323fc5e2df08d58b06990466169&format=json"
+      url =  "http://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key=#{ENV['API_KEY']}&format=json"
       response = RestClient.get(url)
       top_track = JSON.parse(response)
       top_track_list = top_track["tracks"]["track"].map do |track|
