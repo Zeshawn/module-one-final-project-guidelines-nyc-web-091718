@@ -8,3 +8,6 @@ gem "require_all"
 gem 'rake'
 gem 'database_cleaner'
 gem "rest-client"
+gem 'launchy'
+gem 'nokogiri'
+gem 'dotenv'

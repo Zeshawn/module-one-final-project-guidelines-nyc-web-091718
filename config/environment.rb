@@ -1,5 +1,7 @@
 require 'bundler'
 Bundler.require
+Dotenv.load
+
 require_relative '../app/cli/cli_methods.rb'
 require_relative '../app/models/artist.rb'
 require_relative '../app/models/userartist.rb'

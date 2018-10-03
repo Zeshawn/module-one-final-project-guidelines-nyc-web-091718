@@ -1,10 +1,11 @@
 
 class Cli
 
-
-
 require 'json'
 require 'rest-client'
+require 'launchy'
+require 'nokogiri'
+
   def initialize()
     @root = "http://ws.audioscrobbler.com/2.0/"
     @user = nil
@@ -78,6 +79,7 @@ require 'rest-client'
       choice = gets.chomp
       if choice == "1"
         discover_something
+        youtube_search(@artist)
         get_feedback
         recurring_prompt
       elsif choice == "2"
@@ -184,11 +186,30 @@ require 'rest-client'
       end
       user_artists = get_user_artists
       top_track_list.delete_if {|track_and_artist| user_artists.include?(track_and_artist[1])}
-      top_track_list.each do |track_and_artist|
-        puts "#{track_and_artist[0]} by #{track_and_artist[1]}"
+      top_track_list.each_with_index do |track_and_artist, index|
+        puts "#{index + 1}. #{track_and_artist[0]} by #{track_and_artist[1]}"
         sleep(0.2)
       end
-      binding.pry
+        puts "Would you like to see any of these? Enter the number or type no"
+          choice = gets.chomp
+          if choice.to_i != 0
+            youtube_search("#{top_track_list[choice.to_i-1][0]} #{top_track_list[choice.to_i-1][1]}")
+            @artist = top_track_list[choice.to_i-1][1]
+            get_feedback
+          end
+      end
 
-    end
+
+
+
+    def youtube_search(query_term)
+
+        query_term = query_term.split(" ").join("+")
+        url = "https://www.youtube.com/results?search_query=#{query_term}"
+        document = Nokogiri::HTML(RestClient.get(url))
+        first_hit = document.css("a").map {|a| a['href']}.select {|link| link.include?("watch")&& link.length == 20}.first
+        first_hit_url = "https://www.youtube.com/#{first_hit}"
+
+        Launchy.open(first_hit_url)
+  end
 end
