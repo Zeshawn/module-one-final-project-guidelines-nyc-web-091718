@@ -5,6 +5,21 @@ require 'json'
 require 'rest-client'
 require 'launchy'
 require 'nokogiri'
+require 'colorize'
+
+    def greeting
+
+      puts ' Welcome to ...
+   ▄████████  ▄██████▄     ▄▄▄▄███▄▄▄▄      ▄████████     ███        ▄█    █▄     ▄█  ███▄▄▄▄      ▄██████▄       ███▄▄▄▄      ▄████████  ▄█     █▄
+  ███    ███ ███    ███  ▄██▀▀▀███▀▀▀██▄   ███    ███ ▀█████████▄   ███    ███   ███  ███▀▀▀██▄   ███    ███      ███▀▀▀██▄   ███    ███ ███     ███
+  ███    █▀  ███    ███  ███   ███   ███   ███    █▀     ▀███▀▀██   ███    ███   ███▌ ███   ███   ███    █▀       ███   ███   ███    █▀  ███     ███
+  ███        ███    ███  ███   ███   ███  ▄███▄▄▄         ███   ▀  ▄███▄▄▄▄███▄▄ ███▌ ███   ███  ▄███             ███   ███  ▄███▄▄▄     ███     ███
+▀███████████ ███    ███  ███   ███   ███ ▀▀███▀▀▀         ███     ▀▀███▀▀▀▀███▀  ███▌ ███   ███ ▀▀███ ████▄       ███   ███ ▀▀███▀▀▀     ███     ███
+         ███ ███    ███  ███   ███   ███   ███    █▄      ███       ███    ███   ███  ███   ███   ███    ███      ███   ███   ███    █▄  ███     ███
+   ▄█    ███ ███    ███  ███   ███   ███   ███    ███     ███       ███    ███   ███  ███   ███   ███    ███      ███   ███   ███    ███ ███ ▄█▄ ███
+ ▄████████▀   ▀██████▀    ▀█   ███   █▀    ██████████    ▄████▀     ███    █▀    █▀    ▀█   █▀    ████████▀        ▀█   █▀    ██████████  ▀███▀███▀
+'.red
+  end
 
   def initialize()
     @root = "http://ws.audioscrobbler.com/2.0/"
@@ -15,37 +30,42 @@ require 'nokogiri'
       puts "Would you like to connect your last.fm account? Type no if you do not have an account."
       input = gets.chomp
       if input.downcase == "no"
-        puts "Enter your favorite three artists below, separated by commas."
+        puts "Enter your favorite artists below, separated by commas. (ex: Artist1, Artist2, Artist3)"
         artist_array = gets.chomp.split(", ")
+        artist_array = artist_array.map do |artist| get_correction(artist) end
+        binding.pry
         artist_array.each do |artist|
+          if artist != nil
           chosen_artist = Artist.find_or_create_by(name: artist)
           ua = UserArtist.create
           ua.user = @user
           ua.artist = chosen_artist
           ua.approval = true
           ua.save
+        else
+          puts "Could not find artist #{artist}."
         end
+       end
       else
         puts "Enter your lastfm username"
         lastfmusername = gets.chomp
-        # puts "Please enter your lastfm username"
         get_user_top_artist(lastfmusername)
-        puts "Ok!"
+        puts "Profile successfully imported!!\n\n"
       end
     end
 
     def get_user_top_artist(username)
-      url = "#{@root}?method=user.gettopartists&user=#{username}&api_key=#{ENV['API_KEY']}&format=json"
+      url = "#{@root}?method=user.gettopartists&user=#{username}&api_key=#{ENV['API_KEY']}&format=json&limit=500"
       anything = RestClient.get(url)
       result = JSON.parse(anything)
       artist_array = result['topartists']["artist"].map {|artist| artist["name"]}
       artist_array.each do |artist|
-        artist = Artist.find_or_create_by(name: artist)
-        ua = UserArtist.create
-        ua.user = @user
-        ua.artist = artist
-        ua.approval = true
-        ua.save
+          artist = Artist.find_or_create_by(name: artist)
+          ua = UserArtist.create
+          ua.user = @user
+          ua.artist = artist
+          ua.approval = true
+          ua.save
       end
     end
 
@@ -60,7 +80,7 @@ require 'nokogiri'
       else input.downcase == 'no'
         found_user = 1
         while found_user != nil
-          puts "Please choose a username for your new account."
+          puts "Please choose a unique username for your new account."
           username1 = gets.chomp
           found_user = User.find_by(name: username1)
         end
@@ -92,9 +112,9 @@ require 'nokogiri'
         add_artist_to_user
         recurring_prompt
       elsif choice == '5'
-        puts "Bye bye !"
+        puts "Bye bye! "
       else
-        "Please choose what you want using an integer between 1 and 3."
+        puts "Please choose what you want using an integer between 1 and 5."
         recurring_prompt
       end
     end
@@ -151,33 +171,46 @@ require 'nokogiri'
     end
 
     def add_artist_to_user
-      puts "Enter an artist that you have heard of."
+      puts "Enter an artist that you have heard of or would like to edit."
       artist = gets.chomp
-      newartist = Artist.find_or_create_by(:name => artist)
-      newua = UserArtist.create
-      newua.user = @user
-      newua.artist = newartist
+      artist = get_correction(artist)
+      if artist == nil
+        puts "Are you sure this artist exists?"
+        return
+      end
+      artist = Artist.find_or_create_by(:name => artist)
+      ua = UserArtist.find_or_create_by(:user_id => @user.id, :artist_id => artist.id)
       puts "Do you like this artist? (Yes/No)"
       choice = gets.chomp
-      newua.approval = (choice.downcase == "yes") ? true : false
-      newua.save
+      ua.approval = (choice.downcase == "yes") ? true : false
+      ua.save
     end
 
     def display_artists
-      puts "Artists you like!"
-        get_liked_user_artists.each do |artist| puts artist
-          sleep(0.2)
+      print "Artists you like!".colorize(:color => :light_red, :background => :light_white)
+      puts "*".colorize(:color => :light_red, :background => :light_white) * (50 - "Artists you like!".length)
+        get_liked_user_artists.each do |artist|
+          print artist.colorize(:color => :light_red, :background => :light_white)
+          puts " ".colorize(:color => :light_red, :background => :light_white) * (50 - artist.length)
+          sleep(0.02)
         end
+      puts "\n"
+      puts "\n"
 
-      puts "Artists you don't like"
-        get_disliked_user_artists.each do |artist| puts artist
-          sleep(0.2)
+      print "Artists you don't like".colorize(:color => :light_blue, :background => :light_white)
+      puts "*".colorize(:color => :light_blue, :background => :light_white) * (50 - "Artists you don't like".length)
+        get_disliked_user_artists.each do |artist|
+          print artist.colorize(:color => :light_blue, :background => :light_white)
+          puts " ".colorize(:color => :light_blue, :background => :light_white) * (50 - artist.length)
+          sleep(0.02)
         end
+      puts "\n \n \n"
+
 
     end
 
     def top_tracks
-      puts "Here are some top tracks that you've been missing out on!"
+      puts "\n\n \u{1f525} Here are some top tracks that you've been missing out on! \u{1f525}".colorize(:color => :cyan, :background => :light_white)
       url =  "http://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key=#{ENV['API_KEY']}&format=json"
       response = RestClient.get(url)
       top_track = JSON.parse(response)
@@ -187,7 +220,7 @@ require 'nokogiri'
       user_artists = get_user_artists
       top_track_list.delete_if {|track_and_artist| user_artists.include?(track_and_artist[1])}
       top_track_list.each_with_index do |track_and_artist, index|
-        puts "#{index + 1}. #{track_and_artist[0]} by #{track_and_artist[1]}"
+        puts "#{index + 1}. #{track_and_artist[0]} by #{track_and_artist[1]}".colorize(:color => :cyan, :background => :light_white)
         sleep(0.2)
       end
         puts "Would you like to see any of these? Enter the number or type no"
@@ -212,4 +245,11 @@ require 'nokogiri'
 
         Launchy.open(first_hit_url)
   end
+
+  def get_correction(artist)
+    url = @root + "?method=artist.getcorrection&artist=#{artist}&api_key=#{ENV['API_KEY']}&format=json"
+    response = RestClient.get(url)
+    artist_correction = JSON.parse(response)
+    artist_correction["corrections"].class == Hash ? artist_correction["corrections"]["correction"]["artist"]["name"] : nil
+   end
 end

@@ -11,3 +11,4 @@ gem "rest-client"
 gem 'launchy'
 gem 'nokogiri'
 gem 'dotenv'
+gem 'colorize'
