@@ -6,6 +6,7 @@ require 'rest-client'
 require 'launchy'
 require 'nokogiri'
 require 'colorize'
+require 'addressable'
 
     def greeting
 
@@ -28,29 +29,39 @@ require 'colorize'
   end
     def initialize_user
       puts "Would you like to connect your last.fm account? Type no if you do not have an account."
-      input = gets.chomp
-      if input.downcase == "no"
-        puts "Enter your favorite artists below, separated by commas. (ex: Artist1, Artist2, Artist3)"
-        artist_array = gets.chomp.split(", ")
-        artist_array = artist_array.map do |artist| get_correction(artist) end
-        binding.pry
-        artist_array.each do |artist|
-          if artist != nil
-          chosen_artist = Artist.find_or_create_by(name: artist)
-          ua = UserArtist.create
-          ua.user = @user
-          ua.artist = chosen_artist
-          ua.approval = true
-          ua.save
+      while true
+        input = gets.chomp
+        if input.downcase == "no"
+          puts "Enter your favorite artists below, separated by commas. (ex: Artist1, Artist2, Artist3)"
+          artist_array = gets.chomp.split(", ")
+          artist_array = artist_array.map do |artist| get_correction(artist) end
+          artist_array.each do |artist|
+            if artist != nil
+              chosen_artist = Artist.find_or_create_by(name: artist)
+              ua = UserArtist.create
+              ua.user = @user
+              ua.artist = chosen_artist
+              ua.approval = true
+              ua.save
+            elsif artist == nil
+              puts "Could not find artist #{artist}."
+            end
+          end
+        elsif input.downcase == "yes"
+          puts "Enter your lastfm username"
+          lastfmusername = gets.chomp
+          get_user_top_artist(lastfmusername)
+          puts "Profile successfully imported!!\n\n"
+              # puts "Please enter yes or no"
         else
-          puts "Could not find artist #{artist}."
+          puts "Please enter yes or no"
         end
-       end
-      else
-        puts "Enter your lastfm username"
-        lastfmusername = gets.chomp
-        get_user_top_artist(lastfmusername)
-        puts "Profile successfully imported!!\n\n"
+        break if input.downcase == "yes" || input.downcase == "no"
+
+          # puts "Enter your lastfm username"
+          # lastfmusername = gets.chomp
+          # get_user_top_artist(lastfmusername)
+          # puts "Profile successfully imported!!\n\n"
       end
     end
 
@@ -99,7 +110,8 @@ require 'colorize'
       choice = gets.chomp
       if choice == "1"
         discover_something
-        youtube_search(@artist)
+        song = song_getter(@artist)
+        youtube_search("#{@artist} #{song}")
         get_feedback
         recurring_prompt
       elsif choice == "2"
@@ -122,10 +134,10 @@ require 'colorize'
     def discover_something
       random_liked_artist = get_liked_user_artists.sample
       select_similar_artist(random_liked_artist)
-
     end
 
     def select_similar_artist(artistname)
+      # artistname = normalize(artistname)
       url = "#{@root}?method=artist.getsimilar&artist=#{artistname}&api_key=#{ENV['API_KEY']}&format=json"
       response = RestClient.get(url)
       similar_to_artist = JSON.parse(response)
@@ -135,7 +147,6 @@ require 'colorize'
       end
       @artist = artist_array.sample
       puts @artist
-      ##then use API to get a top track, maybe selecting at random
     end
 
     def get_user_artists
@@ -236,7 +247,6 @@ require 'colorize'
 
 
     def youtube_search(query_term)
-
         query_term = query_term.split(" ").join("+")
         url = "https://www.youtube.com/results?search_query=#{query_term}"
         document = Nokogiri::HTML(RestClient.get(url))
@@ -252,4 +262,21 @@ require 'colorize'
     artist_correction = JSON.parse(response)
     artist_correction["corrections"].class == Hash ? artist_correction["corrections"]["correction"]["artist"]["name"] : nil
    end
+
+   def song_getter(artist)
+     url = @root + "?method=artist.gettoptracks&artist=#{artist}&api_key=#{ENV['API_KEY']}&format=json"
+     response = RestClient.get(url)
+     get_top_tracks = JSON.parse(response)
+     get_top_tracks["toptracks"]["track"][0]["name"]
+   end
+
+   # def normalize(artist)
+   #   artist = artist.unicode_normalize(:nfkd).chars
+   #   alpha = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
+   #     "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
+   #  artist.delete_if {|char| !alpha.include?(char.downcase)}
+   #     artist.join
+   # end
+
+
 end

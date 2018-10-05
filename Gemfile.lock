@@ -71,6 +71,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  addressable
   colorize
   database_cleaner
   dotenv
